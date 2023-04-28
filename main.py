@@ -17,6 +17,7 @@ KCAL_IN_KJ = 4.184
 GALLON_IN_LITER = 0.26417
 LITERS_IN_GALLON = 3.78541178
 ONE_BASE_UNIT = 1
+FUEL_CACHE = {}
 
 def menu():
     os.system('cls')
@@ -35,7 +36,7 @@ def menu():
     print("*****  *****")
     print("")
     print("***** Complex Calulations *****")
-    print("XX. Gas USD/Gallon & EUR/Liter") #TODO
+    print("10. Gas USD/Gallon & EUR/Liter")
     print("0. Exit")
     response = input("Please make a selection: ")
     if response == "1":
@@ -48,7 +49,7 @@ def menu():
         weight_convert()
     elif response == "7":
         energy_convert()
-    elif response == "XX":
+    elif response == "10":
         gas_price_convert()
     elif response == "0":
         return 0
@@ -282,22 +283,23 @@ def energy_convert():
     return 0
 
 def _get_rates(params: dict = {"base": "USD", "symbols": "EUR,GBP,CAD,AUD,MXN"}):
+    global FUEL_CACHE
     url = 'https://api.apilayer.com/exchangerates_data/latest'
     payload = {}
     headers = {"apikey": exchange_api_key}
     params = params
-    print("LOGGER: Before")
-    res = requests.request("GET", url, params = params, headers = headers, data = payload)
-    print("LOGGER: After")
-    while not res:
-        print("working")
-    os.system('cls')
-    data = json.loads(res.text)
-    if data['success'] == True:
-        rates = data['rates']
-        return rates
+    if 'USD' in FUEL_CACHE:
+        return FUEL_CACHE
     else:
-        return {"status": "ERROR"}
+        res = requests.request("GET", url, params = params, headers = headers, data = payload)
+        data = json.loads(res.text)
+        if data['success'] == True:
+            FUEL_CACHE = data['rates']
+            rates = data['rates']
+            return rates
+        else:
+            return {"status": "ERROR"}
+
 
 # XX
 def gas_price_convert():
@@ -305,36 +307,49 @@ def gas_price_convert():
     print("***** Money/Unit Conversion *****")
     print("")
     print("1. USD per Gal to GBP/CAD/AUD/MXN per liter")
-    print("2. GBP/L to others")
-    print("3. CAD/L to others")
-    print("4. AUD/L to others")
-    print("5. MXN/L to others")
+    print("2. from GBP/L to others")
+    print("3. from CAD/L to others")
+    print("4. from AUD/L to others")
+    print("5. from MXN/L to others")
     print("")
     response = input("Please make a selection: ")
     if response == "1":
         rates = _get_rates()
         USD_per_gallon = input("How much does a gallon of gas cost, in USD? ")
+        os.system('cls')
         for currency, rate_per_dollar in rates.items():
             price_per_liter = round(float(USD_per_gallon) * GALLON_IN_LITER / (ONE_BASE_UNIT / rate_per_dollar), 2)
             print(f"${float(USD_per_gallon)} per gallon is {price_per_liter} {currency} per liter")
+        input("Press ENTER to continue....")
+        return 0
 
     elif response == "2":
         base_currency = "GBP"
-        params = {"base": base_currency, "symbols": "AUD,CAD,EUR,GBP,MXN,USD"}
-        print(base_currency)
-        rates = _get_rates(params)
-        print(rates)
-        rate_per_dollar = rates['USD']
-        cost_per_litre = input(f"How much does a litre of petrol cost, in {base_currency}? ")
-        dollars_per_gallon = round(float(cost_per_litre) * LITERS_IN_GALLON * rate_per_dollar, 2)
-        print(f"{float(cost_per_litre)} / litre is {dollars_per_gallon} USD per gallon")
+    elif response == "3":
+        base_currency = "CAD"
+    elif response == "4":
+        base_currency = "AUD"
+    elif response == "5":
+        base_currency = "MXN"
 
-        for currency, x_rate in rates.items():
+    params = {"base": base_currency, "symbols": "AUD,CAD,EUR,GBP,MXN,USD"}
+    rates = _get_rates(params)
+    rate_per_dollar = rates['USD']
+    cost_per_litre = input(f"How much does a litre of petrol cost, in {base_currency}? ")
+    dollars_per_gallon = round(float(cost_per_litre) * LITERS_IN_GALLON * rate_per_dollar, 2)
+    os.system('cls')
+    print(f"{float(cost_per_litre)} / litre is {dollars_per_gallon} USD per gallon")
+
+    for currency, x_rate in rates.items():
+        if currency == base_currency:
+            continue
+        else:
             currency_per_liter = round(float(cost_per_litre) / ( ONE_BASE_UNIT / x_rate), 2)
             print(f"{float(cost_per_litre)} / litre is {currency_per_liter} {currency} per liter")
 
     # print(data)
-    input("Pause")
+    input("Press ENTER to continue....")
+    return 0
 
 
 def main():
